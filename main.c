@@ -101,13 +101,12 @@ void setupTimer1() {
     REG_L(TIM1_BASE, TIM_CR2) = 0;
     REG_L(TIM1_BASE, TIM_ARR) = 0xFFFF; // max value
     REG_L(TIM1_BASE, TIM_PSC) = 7999;
-    REG_L(TIM1_BASE, TIM_EGR) = 1; // manual update event
-    REG_L(TIM1_BASE, TIM_SR) = 0;
     REG_L(TIM1_BASE, TIM_CNT) = 0;
     REG_L(TIM1_BASE, TIM_CR1) = 5; // enable timer
 }
 
-void countForPeriod(int period) {
+int countForPeriod(int period) {
+    int res;
     int psc = 1;
     while (period > 10000) {
         period = intDiv(period, 10);
@@ -115,8 +114,21 @@ void countForPeriod(int period) {
     }
     REG_L(TIM1_BASE, TIM_ARR) = period - 1;
     REG_L(TIM1_BASE, TIM_PSC) = psc - 1;
+    REG_L(TIM1_BASE, TIM_EGR) = 1; // manual update event
+
+    // stop and reload timers
+    REG_L(TIM1_BASE, TIM_CR1) &= ~1;
+    REG_L(TIM3_BASE, TIM_CR1) &= ~1;
+    REG_L(TIM1_BASE, TIM_SR) = 0;
     REG_L(TIM1_BASE, TIM_CNT) = 0;
-    REG_L(TIM1_BASE, TIM_CR1) = 1; // enable timer
+    REG_L(TIM3_BASE, TIM_CNT) = 0;
+
+    REG_L(TIM3_BASE, TIM_CR1) |= 1;
+    REG_L(TIM1_BASE, TIM_CR1) |= 1;
+
+    while ((REG_L(TIM1_BASE, TIM_SR) & 1) == 0) {
+    }
+    return REG_L(TIM3_BASE, TIM_CNT);
 }
 
 int main(void) {
@@ -130,9 +142,14 @@ int main(void) {
     setupTimer1();
 
     while(1) {
-        sendDec(REG_L(TIM1_BASE, TIM_CNT));
-        send(' ');
-        sendHex(REG_L(TIM1_BASE, TIM_SR), 4);
+        a = 100;
+        do {
+            a *= 10;
+            i = countForPeriod(a);
+        } while (a <= 1000000 && i < 1000);
+        sendDec(a);
+        sends(": ");
+        sendDec(i);
         sends("\r\n");
         for (i = 0; i < 100000; i++) {
         }
