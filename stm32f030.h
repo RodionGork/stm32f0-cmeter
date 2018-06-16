@@ -24,6 +24,7 @@
 
 #define RCC_CR 0x00
 #define RCC_CFGR 0x04
+#define RCC_CFGR2 0x2C
 #define RCC_AHBENR 0x14
 #define RCC_APB2ENR 0x18
 #define RCC_APB1ENR 0x1C

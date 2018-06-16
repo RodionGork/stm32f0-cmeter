@@ -1,6 +1,6 @@
 #include "stm32f030.h"
 
-#define SYS_CLK_MHZ 8
+#define SYS_CLK_MHZ 12
 
 char hex[] = "0123456789ABCDEF";
 
@@ -71,9 +71,17 @@ void sendDec(int x) {
     }
 }
 
+void setupClock() {
+    REG_L(RCC_BASE, RCC_CR) |= (1 << 16); // HSEON = 1
+    while ((REG_L(RCC_BASE, RCC_CR) & (1 << 17)) == 0);
+    REG_L(RCC_BASE, RCC_CFGR) |= (1 << 0);
+    while (((REG_L(RCC_BASE, RCC_CFGR) >> 2) & 0x3) != 1);
+}
+
 void setupPorts() {
     char i;
-    REG_L(RCC_BASE, RCC_AHBENR) |= (1 << 17) | (1 << 18); //port A, B
+    REG_L(RCC_BASE, RCC_AHBENR) |= (1 << 17); // enable port A
+    REG_L(GPIOA_BASE, GPIO_MODER) |= (1 << (5 * 2)); // pa5 - output (LED)
 }
 
 void setupTimer3() {
@@ -131,8 +139,14 @@ int countForPeriod(int period) {
     return REG_L(TIM3_BASE, TIM_CNT);
 }
 
+void ledControl(char state) {
+    REG_L(GPIOA_BASE, GPIO_BSRR) |= (1 << (5 + (state ? 0 : 16)));
+}
+
 int main(void) {
     int i, a;
+    
+    setupClock();
     
     setupPorts();
     
@@ -150,8 +164,19 @@ int main(void) {
         sendDec(a);
         sends(": ");
         sendDec(i);
+        sends(" = ");
+        if (a > 1000000) {
+            a = intDiv(intDiv(a, 14) * 125, i);
+        } else {
+            a = intDiv(a * 125, i * 14);
+        }
+        sendDec(a);
         sends("\r\n");
-        for (i = 0; i < 100000; i++) {
+        ledControl(1);
+        for (i = 0; i < 200000; i++) {
+        }
+        ledControl(0);
+        for (i = 0; i < 200000; i++) {
         }
     }
 }
