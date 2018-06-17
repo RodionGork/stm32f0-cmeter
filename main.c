@@ -1,6 +1,7 @@
 #include "stm32f030.h"
 
 #define SYS_CLK_MHZ 12
+#define UART_BAUD_RATE 115200
 
 char hex[] = "0123456789ABCDEF";
 
@@ -143,6 +144,71 @@ void ledControl(char state) {
     REG_L(GPIOA_BASE, GPIO_BSRR) |= (1 << (5 + (state ? 0 : 16)));
 }
 
+int printResult(int ticks, int count) {
+    int res;
+    sendDec(ticks);
+    sends(": ");
+    sendDec(count);
+    sends(" = ");
+    if (count > 0) {
+        if (ticks > 1000000) {
+            res = intDiv(intDiv(ticks, 14) * 125, count);
+        } else {
+            res = intDiv(ticks * 125, count * 14);
+        }
+    } else {
+        res = 0;
+    }
+}
+
+void delay(int d) {
+    d *= 30000;
+    while (d > 0) {
+        d -= 1;
+    }
+}
+
+void blink(int d) {
+    ledControl(1);
+    delay(d);
+    ledControl(0);
+}
+
+void blinkDigit(int d) {
+    send('0' + d);
+    if (d == 0) {
+        blink(30);
+        delay(30);
+        return;
+    }
+    if (d > 3) {
+        while (d >= 3) {
+            blink(30);
+            delay(10);
+            d -= 3;
+        }
+    }
+    while (d > 0) {
+        blink(10);
+        delay(10);
+        d -= 1;
+    }
+    delay(20);
+}
+
+void blinkResult(int x) {
+    int c, m = 0;
+    while (x > 100) {
+        x = intDiv(x, 10);
+        m += 1;
+    }
+    c = intDiv(x, 10);
+    blinkDigit(c);
+    blinkDigit(x - c * 10);
+    blinkDigit(m);
+    sends("\r\n");
+}
+
 int main(void) {
     int i, a;
     
@@ -150,10 +216,12 @@ int main(void) {
     
     setupPorts();
     
-    uartEnable(SYS_CLK_MHZ * 1000000 / 115200);
+    uartEnable(SYS_CLK_MHZ * 1000000 / UART_BAUD_RATE);
     
     setupTimer3();
     setupTimer1();
+    
+    sends("C-meter. Results are in pF,\r\nthe last digit is magnitude.\r\nDivide by 100 if button not pressed.");
 
     while(1) {
         a = 100;
@@ -161,23 +229,9 @@ int main(void) {
             a *= 10;
             i = countForPeriod(a);
         } while (a <= 1000000 && i < 1000);
-        sendDec(a);
-        sends(": ");
-        sendDec(i);
-        sends(" = ");
-        if (a > 1000000) {
-            a = intDiv(intDiv(a, 14) * 125, i);
-        } else {
-            a = intDiv(a * 125, i * 14);
-        }
-        sendDec(a);
-        sends("\r\n");
-        ledControl(1);
-        for (i = 0; i < 200000; i++) {
-        }
-        ledControl(0);
-        for (i = 0; i < 200000; i++) {
-        }
+        a = printResult(a, i);
+        blinkResult(a);
+        delay(70);
     }
 }
 
