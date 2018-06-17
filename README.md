@@ -1,6 +1,10 @@
 # STM32F030 as Capacitance Meter
 
+Intended to help me with unmarked SMD capacitors etc
+
 Shows results in UART (115200 baud rate) and with LED blinking.
+
+![Capacitance Meter Schematics](https://raw.githubusercontent.com/RodionGork/stm32f0-cmeter/master/sch.jpg)
 
 Results are 3 digits, similar to general capacitor marking: two first
 digits are taken as is and the third means the number of zeroes (i.e. magnitude).
